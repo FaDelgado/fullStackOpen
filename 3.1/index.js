@@ -12,6 +12,7 @@ app.use(
   morgan(":method :url :status :res[content-length] - :response-time ms :body")
 );
 app.use(cors());
+app.use(express.static("build"));
 
 let persons = [
   {
@@ -36,7 +37,7 @@ let persons = [
   },
 ];
 
-const notes = [
+let notes = [
   {
     id: 1,
     content: "HTML is easy",
@@ -64,9 +65,6 @@ app.get("/", (req, res) => {
 app.get("/api/persons", (req, res) => {
   res.json(persons);
 });
-app.get("/api/notes", (req, res) => {
-  res.json(notes);
-});
 
 app.get("/api/info", (req, res) => {
   res.send(`<p>Phonebook has info for ${persons.length} people</p>
@@ -90,11 +88,6 @@ app.delete("/api/persons/:id", (req, res) => {
   res.status(204).end();
 });
 
-const generetedId = () => {
-  const newId = Math.max(...persons.map((person) => person.id)) + 1;
-  return newId;
-};
-
 app.post("/api/persons", (req, res) => {
   const body = req.body;
   if (!body.name || !body.number) {
@@ -117,6 +110,71 @@ app.post("/api/persons", (req, res) => {
   persons = persons.concat(newPerson);
   res.json(newPerson);
 });
+
+const generateId = () => {
+  const maxId = notes.length > 0 ? Math.max(...notes.map((n) => n.id)) : 0;
+  return maxId + 1;
+};
+
+//NOTES
+app.get("/api/notes", (request, response) => {
+  response.json(notes);
+});
+
+app.get("/api/notes/:id", (request, response) => {
+  const id = Number(request.params.id);
+  const note = notes.find((note) => {
+    // console.log(note.id, typeof note.id, id, typeof id, note.id === id);
+    return note.id === id;
+  });
+
+  if (note) {
+    response.json(note);
+  } else {
+    response.status(404).end();
+  }
+});
+
+app.delete("/api/notes/:id", (request, response) => {
+  const id = Number(request.params.id);
+  notes = notes.filter((note) => note.id !== id);
+
+  response.status(204).end();
+});
+
+app.post("/api/notes", (request, response) => {
+  const body = request.body;
+
+  if (!body.content) {
+    return response.status(400).json({
+      error: "content missing",
+    });
+  }
+
+  const note = {
+    content: body.content,
+    important: body.important || false,
+    date: new Date(),
+    id: generateId(),
+  };
+
+  notes = notes.concat(note);
+
+  response.json(note);
+});
+
+app.put("/api/notes/:id", (request, response) => {
+  const id = Number(request.params.id);
+  notes = notes.map((note) =>
+    note.id === id ? { ...note, ...request.body } : note
+  );
+  response.json(notes.find((note) => note.id === id));
+});
+
+const generetedId = () => {
+  const newId = Math.max(...persons.map((person) => person.id)) + 1;
+  return newId;
+};
 
 const PORT = process.env.PORT || 3001;
 
